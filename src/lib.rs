@@ -5,7 +5,17 @@ use cid::Cid;
 use std::collections::HashMap;
 use std::str;
 
+use node::Node;
+
+mod node;
+
 pub struct Blob(Vec<u8>);
+
+impl Node for Blob {
+    fn links(&self) -> Vec<node::Link> {
+        Vec::new()
+    }
+}
 
 pub struct Tree {
     entries: HashMap<String, TreeEntry>,
@@ -24,6 +34,14 @@ impl Tree {
     }
 }
 
+impl Node for Tree {
+    fn links(&self) -> Vec<node::Link> {
+        self.entries.iter()
+                    .map(|(_, entry)| node::Link::new(&entry.cid))
+                    .collect::<Vec<_>>()
+    }
+}
+
 // TODO: change to use bytes crate for zero copy? constructing current struct
 //       requires copying and will be slow for large repos, I believe
 // TODO: file names can maybe have non-utf8 characters. figure out how git
@@ -31,7 +49,7 @@ impl Tree {
 struct TreeEntry {
     pub mode: String,
     pub name: String,
-    pub hash: [u8; 20],
+    pub cid: Cid,
 }
 
 // TODO: encoding, gpgsig, mergetag, non-standard headers?
@@ -40,6 +58,16 @@ pub struct Commit {
     parents: Vec<Cid>,
     author: UserInfo,
     committer: UserInfo,
+}
+
+impl Node for Commit {
+    fn links(&self) -> Vec<node::Link> {
+        let mut v = vec![node::Link::new(&self.tree)];
+        let parent_links = self.parents.iter()
+                    .map(|cid| node::Link::new(&cid));
+        v.extend(parent_links);
+        v
+    }
 }
 
 struct UserInfo {
@@ -152,10 +180,14 @@ fn parse_tree_entry(buf: &[u8]) -> Result<(Option<TreeEntry>, &[u8]), Error> {
                                       characters: {}", e)),
         Ok(s) => s.to_string(),
     };
-    let mut hash: [u8; 20] = [0; 20];
-    hash.copy_from_slice(hash_bytes);
 
-    Ok((Some(TreeEntry { mode: mode, name: name, hash: hash}), rest))
+    let entry = Some(TreeEntry {
+        mode: mode,
+        name: name,
+        cid: sha1_to_cid(hash_bytes)?
+    });
+
+    Ok((entry, rest))
 }
 
 // Commit objects are structured:
