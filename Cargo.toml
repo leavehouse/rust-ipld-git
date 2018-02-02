@@ -1,5 +1,5 @@
 [package]
-name = "rust-ipld-git"
+name = "ipld-git"
 version = "0.0.1"
 authors = ["leavehouse <heavelouse@gmail.com>"]
 
