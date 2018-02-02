@@ -1,0 +1,8 @@
+[package]
+name = "rust-ipld-git"
+version = "0.0.1"
+authors = ["leavehouse <heavelouse@gmail.com>"]
+
+[dependencies]
+cid = { git = "git://github.com/leavehouse/rust-cid", branch = "add-git-raw" }
+multihash = "0.7.0"
