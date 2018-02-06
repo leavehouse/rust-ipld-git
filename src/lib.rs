@@ -79,7 +79,7 @@ struct UserInfo {
     pub timezone: String,
 }
 
-type Error = String;
+pub type Error = String;
 
 pub fn parse_object(buf: &[u8]) -> Result<Box<Node>, Error> {
     let (bytes, obj_type) = parse_object_header(buf)?;
