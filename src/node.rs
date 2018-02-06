@@ -7,7 +7,7 @@ pub trait Node {
 
 #[derive(Debug)]
 pub struct Link<'a> {
-    cid: &'a Cid,
+    pub cid: &'a Cid,
 }
 
 impl<'a> Link<'a> {
