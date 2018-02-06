@@ -81,14 +81,27 @@ struct UserInfo {
 
 type Error = String;
 
+pub fn parse_object(buf: &[u8]) -> Result<Box<Node>, Error> {
+    let (bytes, obj_type) = parse_object_header(buf)?;
+    match obj_type {
+        ObjectType::Blob => Ok(Box::new(parse_blob_object(bytes)?)),
+        ObjectType::Tree => Ok(Box::new(parse_tree_object(bytes)?)),
+        ObjectType::Commit => Ok(Box::new(parse_commit_object(bytes)?)),
+        ObjectType::Tag => unimplemented!(),
+    }
+}
+
+enum ObjectType {
+    Blob,
+    Tree,
+    Commit,
+    Tag
+}
 
 // Parse the header of a serialized git object.
 // A git object is of the form "<type> <size>\x00<object bytes>", with the
 // header containing the type and size.
-fn parse_object_header<'a>(
-    buf: &'a [u8],
-    expected_type: &[u8]
-) -> Result<&'a [u8], Error> {
+fn parse_object_header(buf: &[u8]) -> Result<(&[u8], ObjectType), Error> {
     let (header, bytes) = match cleave_out_at_value(buf, 0) {
         Some((h, b)) => (h, b),
         None => return Err("Invalid format for git object, missing null byte"
@@ -101,10 +114,15 @@ fn parse_object_header<'a>(
                             '<type> <size>'".to_string()),
     };
 
-    if type_ != expected_type {
-        return Err(format!("Expected type '{:?}', got: '{:?}'",
-                           expected_type, type_))
-    }
+    let obj_type = match type_ {
+        b"blob" => ObjectType::Blob,
+        b"tree" => ObjectType::Tree,
+        b"commit" => ObjectType::Commit,
+        b"tag" => ObjectType::Tag,
+        _ => return Err(format!("Invalid object type: expected one of \
+                                 \"blob\", \"tree\", \"commit\" or \"tag\", \
+                                 got: {:?}", type_))
+    };
 
     let size = match str::from_utf8(size) {
         Err(e) => return Err(format!("Error converting the object size to a
@@ -121,11 +139,10 @@ fn parse_object_header<'a>(
                             was {} bytes", size, bytes.len()))
     }
 
-    Ok(bytes)
+    Ok((bytes, obj_type))
 }
 
-pub fn parse_blob_object(buf: &[u8]) -> Result<Blob, Error> {
-    let bytes = parse_object_header(buf, b"blob")?;
+fn parse_blob_object(bytes: &[u8]) -> Result<Blob, Error> {
     Ok(Blob(bytes.to_vec()))
 }
 
@@ -135,11 +152,10 @@ pub fn parse_blob_object(buf: &[u8]) -> Result<Blob, Error> {
 //
 // (A delimeter is not needed between end of one entry and start of next
 // because hashes have a fixed length of 20 bytes.)
-pub fn parse_tree_object(buf: &[u8]) -> Result<Tree, Error> {
-    let mut buf = parse_object_header(buf, b"tree")?;
+fn parse_tree_object(mut bytes: &[u8]) -> Result<Tree, Error> {
     let mut tree = Tree::new();
-    while let (Some(entry), rest) = parse_tree_entry(buf)? {
-        buf = rest;
+    while let (Some(entry), rest) = parse_tree_entry(bytes)? {
+        bytes = rest;
         tree.add_entry(entry);
     }
     Ok(tree)
@@ -195,8 +211,7 @@ fn parse_tree_entry(buf: &[u8]) -> Result<(Option<TreeEntry>, &[u8]), Error> {
 //     author <author string>
 //     committer <committer string>
 //
-pub fn parse_commit_object(buf: &[u8]) -> Result<Commit, Error> {
-    let mut buf = parse_object_header(buf, b"commit")?;
+fn parse_commit_object(mut bytes: &[u8]) -> Result<Commit, Error> {
     // parse the commit header, which is repeatedly parsing lines
     // until you see a blank line
     let mut tree_cid: Option<Cid> = None;
@@ -204,11 +219,11 @@ pub fn parse_commit_object(buf: &[u8]) -> Result<Commit, Error> {
     let mut author_info: Option<UserInfo> = None;
     let mut committer_info: Option<UserInfo> = None;
     loop {
-        let (line, rest) = match cleave_out_at_value(buf, b'\n') {
+        let (line, rest) = match cleave_out_at_value(bytes, b'\n') {
             None => return Err("Unexpected end of bytes".to_string()),
             Some((l, r)) => (l, r),
         };
-        buf = rest;
+        bytes = rest;
 
         if line.len() == 0 {
             break;
