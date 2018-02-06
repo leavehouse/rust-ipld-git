@@ -104,19 +104,18 @@ fn parse_object_header<'a>(
                        .to_string()),
     };
 
-    let header_parts = header.split(|&b| b == b' ').collect::<Vec<_>>();
+    let (type_, size) = match cleave_out_at_value(header, b' ') {
+        Some((h, b)) => (h, b),
+        None => return Err("Invalid format for git object header, must be
+                            '<type> <size>'".to_string()),
+    };
 
-    if header_parts.len() != 2 {
-        return Err("Invalid format for git object, must be '<type> <size>'"
-                       .to_string())
-    }
-
-    if header_parts[0] != expected_type {
+    if type_ != expected_type {
         return Err(format!("Expected type '{:?}', got: '{:?}'",
-                           expected_type, header_parts[0]))
+                           expected_type, type_))
     }
 
-    let size = match str::from_utf8(header_parts[1]) {
+    let size = match str::from_utf8(size) {
         Err(e) => return Err(format!("Error converting the object size to a
                                       string: {}", e)),
         Ok(s) => match s.parse::<u64>() {
