@@ -329,4 +329,43 @@ fn byteslice_to_string(s: &[u8]) -> Result<String, Error> {
 
 #[cfg(test)]
 mod test {
+    use hex;
+    use multihash;
+    use util::sha1_to_cid;
+
+    // header: 'commit 182'
+    const INIT_COMMIT: &'static [u8] = b"\
+        tree 7cee6dfa7d13e124220d2c04923f0cb0347ba27c\n\
+        author Moloch <pure_machinery@example.com> 1517911033 -0600\n\
+        committer Jaden Doe <j.doe@example.com> 1517914295 +0100\n\
+        \n\
+        Initial commit.\n";
+
+    #[test]
+    fn parse_commit() {
+        let commit = match super::parse_commit_object(INIT_COMMIT) {
+            Err(e) => panic!("Parsing error: {}", e),
+            Ok(c) => c,
+        };
+
+        println!("commit.tree.hash = {:?}", &commit.tree.hash);
+        let commit_tree_multihash = multihash::decode(&commit.tree.hash).unwrap();
+
+        let tree_hash_hex = "7cee6dfa7d13e124220d2c04923f0cb0347ba27c";
+        let tree_hash = hex::decode(&tree_hash_hex).unwrap();
+
+        assert_eq!(commit_tree_multihash.digest, &tree_hash[..]);
+
+        assert!(commit.parents.len() == 0);
+
+        assert_eq!(&commit.author.name, "Moloch");
+        assert_eq!(&commit.author.email, "pure_machinery@example.com");
+        assert_eq!(&commit.author.timestamp, "1517911033");
+        assert_eq!(&commit.author.timezone, "-0600");
+
+        assert_eq!(&commit.committer.name, "Jaden Doe");
+        assert_eq!(&commit.committer.email, "j.doe@example.com");
+        assert_eq!(&commit.committer.timestamp, "1517914295");
+        assert_eq!(&commit.committer.timezone, "+0100");
+    }
 }
