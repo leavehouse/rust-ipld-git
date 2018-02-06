@@ -5,7 +5,7 @@ use cid::Cid;
 use std::collections::HashMap;
 use std::str;
 
-use node::Node;
+pub use node::Node;
 
 mod node;
 
