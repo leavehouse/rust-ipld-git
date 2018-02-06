@@ -5,6 +5,7 @@ pub trait Node {
     fn links<'a>(&'a self) -> Vec<Link<'a>>;
 }
 
+#[derive(Debug)]
 pub struct Link<'a> {
     cid: &'a Cid,
 }
