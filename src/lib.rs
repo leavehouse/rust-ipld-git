@@ -6,8 +6,10 @@ use std::collections::HashMap;
 use std::str;
 
 pub use node::Node;
+use util::{cleave_out_at_value, sha1_to_cid};
 
 mod node;
+mod util;
 
 pub struct Blob(Vec<u8>);
 
@@ -79,17 +81,6 @@ struct UserInfo {
 
 type Error = String;
 
-// Split `s` into two slices at the first slice element to equal `val`,
-// removing the matched element
-// TODO: generalize to take a predicate function?
-fn cleave_out_at_value(s: &[u8], val: u8) -> Option<(&[u8], &[u8])> {
-    let i = match s.iter().enumerate().find(|&(_, &el)| el == val) {
-        Some((i, _)) => i,
-        None => return None,
-    };
-
-    Some((&s[..i], &s[i+1..]))
-}
 
 // Parse the header of a serialized git object.
 // A git object is of the form "<type> <size>\x00<object bytes>", with the
@@ -310,27 +301,9 @@ fn parse_user_info(buf: &[u8]) -> Result<UserInfo, Error> {
 }
 
 fn byteslice_to_string(s: &[u8]) -> Result<String, Error> {
-    str::from_utf8(s).map(|s| s.to_string())
-                     .map_err(|e| format!("{}", e))
-}
-
-fn sha1_to_cid(sha1: &[u8]) -> Result<Cid, Error> {
-    // TODO: this constructor is a little ugly because you have to
-    // manually specify "20" for the length. could use multihash::Hash::SHA1.size(),
-    // but that returns a u8 and mh_len is expecting a usize, so youd have to cast
-    // i.e. `multihash::Hash::SHA1.size() as usize` instead of `20`, which is uglier
-    // still. Open issue with rust-cid suggesting that the version, the codec, and the
-    // hash type should be all thats needed for constructing a Cid from a hash digest
-    if sha1.len() != 20 {
-        return Err("Cannot convert byte slice to Cid: must be a 20-byte SHA-1 digest".to_string())
-    }
-    let cid_prefix = cid::Prefix {
-        version: cid::Version::V1,
-        codec: cid::Codec::GitRaw,
-        mh_type: multihash::Hash::SHA1,
-        mh_len: 20,
-    };
-    Ok(Cid::new_from_prefix(&cid_prefix, &sha1))
+    str::from_utf8(s)
+        .map(|s| s.to_string())
+        .map_err(|e| format!("Error converting to utf-8 string: {}", e))
 }
 
 #[cfg(test)]
