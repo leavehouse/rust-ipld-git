@@ -1,4 +1,5 @@
 extern crate cid;
+extern crate hex;
 extern crate multihash;
 
 use cid::Cid;
@@ -237,13 +238,18 @@ fn parse_commit_object(mut bytes: &[u8]) -> Result<Commit, Error> {
 
         match name {
             b"tree" => {
+                // TODO: convert data from 40-byte ASCII string to 20-byte bytestring
+                let digest = hex::decode(data)
+                    .map_err(|e| "Tree hash is not valid hexadecimal")?;
                 if tree_cid.is_some() {
                     return Err("Invalid second tree entry found".to_string())
                 }
-                tree_cid = Some(sha1_to_cid(data)?);
+                tree_cid = Some(sha1_to_cid(&digest)?);
             },
             b"parent" => {
-                parents.push(sha1_to_cid(data)?);
+                let digest = hex::decode(data)
+                    .map_err(|e| "Tree hash is not valid hexadecimal")?;
+                parents.push(sha1_to_cid(&digest)?);
             },
             b"author" => {
                 if author_info.is_some() {

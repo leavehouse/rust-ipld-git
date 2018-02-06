@@ -5,4 +5,5 @@ authors = ["leavehouse <heavelouse@gmail.com>"]
 
 [dependencies]
 cid = { git = "git://github.com/leavehouse/rust-cid", branch = "add-git-raw" }
+hex = "0.3.1"
 multihash = "0.7.0"

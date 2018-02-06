@@ -23,7 +23,8 @@ pub fn sha1_to_cid(sha1: &[u8]) -> Result<Cid, Error> {
     // still. Open issue with rust-cid suggesting that the version, the codec, and the
     // hash type should be all thats needed for constructing a Cid from a hash digest
     if sha1.len() != 20 {
-        return Err("Cannot convert byte slice to Cid: must be a 20-byte SHA-1 digest".to_string())
+        return Err(format!("Cannot convert byte slice to Cid: SHA-1 digests \
+                            are 20-bytes, this is {} bytes", sha1.len()))
     }
     let cid_prefix = cid::Prefix {
         version: cid::Version::V1,
