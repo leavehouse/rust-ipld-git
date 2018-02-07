@@ -10,7 +10,7 @@ pub use node::Node;
 use util::{cleave_out_at_value, sha1_to_cid};
 
 mod node;
-mod util;
+pub mod util;
 
 pub struct Blob(Vec<u8>);
 
